@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from enum import Enum
 from pathlib import Path
 
 import typer
 
-from .auth import Credentials
+from .auth import Credentials, OAUTH1_REQUIRED_MESSAGE
 from .client import TumblrClient
 from .errors import ApiError, AuthError, ValidationError
 from .models import PostRequest
@@ -46,20 +47,62 @@ def _root() -> None:
 
 def _log_redacted_credentials(credentials: Credentials) -> None:
     LOGGER.debug(
-        "Using credentials client_id=%s client_secret=%s access_token=%s",
-        credentials.client_id,
-        redact_secret(credentials.client_secret),
-        redact_secret(credentials.access_token),
+        "Using OAuth 1.0a credentials consumer_key=%s consumer_secret=%s oauth_token=%s oauth_token_secret=%s",
+        credentials.consumer_key,
+        redact_secret(credentials.consumer_secret),
+        redact_secret(credentials.oauth_token),
+        redact_secret(credentials.oauth_token_secret),
     )
+
+
+def _resolve_auth_values(
+    consumer_key: str | None,
+    consumer_secret: str | None,
+    oauth_token: str | None,
+    oauth_token_secret: str | None,
+    client_id: str | None,
+    client_secret: str | None,
+    access_token: str | None,
+) -> Credentials:
+    resolved_consumer_key = consumer_key or client_id or os.getenv("TUMBLR_CONSUMER_KEY")
+    resolved_consumer_secret = consumer_secret or client_secret or os.getenv("TUMBLR_CONSUMER_SECRET")
+    resolved_oauth_token = oauth_token or os.getenv("TUMBLR_OAUTH_TOKEN")
+    resolved_oauth_token_secret = oauth_token_secret or os.getenv("TUMBLR_OAUTH_TOKEN_SECRET")
+
+    if access_token and not resolved_oauth_token:
+        raise ValidationError(
+            "--access-token is deprecated and ambiguous. Use --oauth-token explicitly (Tumblr OAuth 1.0a token from API Console)."
+        )
+
+    return Credentials.from_cli(
+        consumer_key=resolved_consumer_key,
+        consumer_secret=resolved_consumer_secret,
+        oauth_token=resolved_oauth_token,
+        oauth_token_secret=resolved_oauth_token_secret,
+    )
+
+
+@app.command("auth-login", hidden=True)
+def auth_login() -> None:
+    """Deprecated auth command placeholder."""
+    typer.echo(
+        "DEPRECATED: tumblr-posts uses Tumblr API Console OAuth 1.0a tokens directly. "
+        "No callback URL or interactive OAuth dance is required."
+    )
+    raise typer.Exit(code=2)
 
 
 @app.command("publish")
 def publish(
     blog: str = typer.Option(..., "--blog", help="Target Tumblr blog, e.g. myblog.tumblr.com"),
     file: Path = typer.Option(..., "--file", exists=False, dir_okay=False, readable=True, help="Plain-text file to publish."),
-    client_id: str = typer.Option(..., "--client-id", help="Tumblr app client ID."),
-    client_secret: str = typer.Option(..., "--client-secret", help="Tumblr app client secret."),
-    access_token: str = typer.Option(..., "--access-token", help="Tumblr OAuth access token used as bearer token."),
+    consumer_key: str | None = typer.Option(None, "--consumer-key", help="Tumblr OAuth 1.0a consumer key.", envvar="TUMBLR_CONSUMER_KEY"),
+    consumer_secret: str | None = typer.Option(None, "--consumer-secret", help="Tumblr OAuth 1.0a consumer secret.", envvar="TUMBLR_CONSUMER_SECRET"),
+    oauth_token: str | None = typer.Option(None, "--oauth-token", help="Tumblr OAuth 1.0a token (API Console token/access token).", envvar="TUMBLR_OAUTH_TOKEN"),
+    oauth_token_secret: str | None = typer.Option(None, "--oauth-token-secret", help="Tumblr OAuth 1.0a token secret (API Console token_secret).", envvar="TUMBLR_OAUTH_TOKEN_SECRET"),
+    client_id: str | None = typer.Option(None, "--client-id", help="[Deprecated] Use --consumer-key."),
+    client_secret: str | None = typer.Option(None, "--client-secret", help="[Deprecated] Use --consumer-secret."),
+    access_token: str | None = typer.Option(None, "--access-token", help="[Deprecated] Do not use. Provide --oauth-token and --oauth-token-secret."),
     title: str | None = typer.Option(None, "--title", help="Optional post title."),
     state: PostState = typer.Option(PostState.published, "--state", case_sensitive=False, help="Post state.", show_default=True),
     tags: list[str] | None = typer.Option(None, "--tags", help="One or more tags for the API tags field."),
@@ -68,7 +111,7 @@ def publish(
     insert_links: list[str] | None = typer.Option(None, "--insert-links", help="One or more links to add to content."),
     links_header: str = typer.Option("Links:", "--links-header", help="Header label for inserted links block."),
     links_position: LinksPosition = typer.Option(LinksPosition.bottom, "--links-position", case_sensitive=False, help="Insert links at top or bottom."),
-    api_base_url: str = typer.Option("https://api.tumblr.com/v2", "--api-base-url", help="Tumblr API base URL."),
+    api_base_url: str = typer.Option("https://api.tumblr.com", "--api-base-url", help="Tumblr API base URL."),
     timeout: int = typer.Option(30, "--timeout", min=1, help="HTTP timeout in seconds."),
     verbose: bool = typer.Option(False, "--verbose", help="Enable debug logs."),
 ) -> None:
@@ -78,7 +121,15 @@ def publish(
         valid_state = state.value
         valid_links_position = links_position.value
 
-        credentials = Credentials.from_cli(client_id=client_id, client_secret=client_secret, access_token=access_token)
+        credentials = _resolve_auth_values(
+            consumer_key=consumer_key,
+            consumer_secret=consumer_secret,
+            oauth_token=oauth_token,
+            oauth_token_secret=oauth_token_secret,
+            client_id=client_id,
+            client_secret=client_secret,
+            access_token=access_token,
+        )
         _log_redacted_credentials(credentials)
 
         file_content = ensure_text_file_contents(file)
@@ -94,7 +145,15 @@ def publish(
             tags_header=tags_header,
         )
 
-        client = TumblrClient(credentials=credentials, base_url=api_base_url, timeout=timeout)
+        client = TumblrClient(
+            consumer_key=credentials.consumer_key,
+            consumer_secret=credentials.consumer_secret,
+            oauth_token=credentials.oauth_token,
+            oauth_token_secret=credentials.oauth_token_secret,
+            api_base_url=api_base_url,
+            timeout=timeout,
+            verbose=verbose,
+        )
         response = client.create_text_post(
             PostRequest(
                 blog=blog,
@@ -117,7 +176,11 @@ def publish(
         typer.echo(message)
 
     except ValidationError as exc:
-        typer.echo(f"ERROR(validation): {exc}", err=True)
+        message = str(exc)
+        if OAUTH1_REQUIRED_MESSAGE in message:
+            typer.echo(f"ERROR(validation): {OAUTH1_REQUIRED_MESSAGE}", err=True)
+        else:
+            typer.echo(f"ERROR(validation): {exc}", err=True)
         raise typer.Exit(code=2)
     except AuthError as exc:
         typer.echo(f"ERROR(auth): {exc}", err=True)

@@ -1,6 +1,6 @@
 # How to publish a Tumblr post from a plain-text file
 
-This guide walks you through publishing Tumblr text posts with the `tumblr-posts` CLI.
+This guide walks you through publishing Tumblr text posts with the `tumblr-posts` CLI using OAuth 1.0a API Console credentials.
 
 ## 1) Create a plain-text file
 
@@ -20,112 +20,91 @@ tumblr-posts publish \
   --blog myblog.tumblr.com \
   --file post.txt \
   --title "Ship log" \
-  --client-id "$TUMBLR_CLIENT_ID" \
-  --client-secret "$TUMBLR_CLIENT_SECRET" \
-  --access-token "$TUMBLR_ACCESS_TOKEN"
+  --consumer-key "$TUMBLR_CONSUMER_KEY" \
+  --consumer-secret "$TUMBLR_CONSUMER_SECRET" \
+  --oauth-token "$TUMBLR_OAUTH_TOKEN" \
+  --oauth-token-secret "$TUMBLR_OAUTH_TOKEN_SECRET"
 ```
 
-## 3) Add links at the bottom (default)
+## 3) Where do I get `oauth_token` and `oauth_token_secret`?
+
+Open the Tumblr API Console for your app and click **Show keys**. Copy all OAuth 1.0a values:
+
+- `consumer_key`
+- `consumer_secret`
+- `oauth_token`
+- `oauth_token_secret`
+
+`oauth_token_secret` alone is not sufficient; you must provide both token and token secret.
+
+## 4) Add links at the bottom (default)
 
 ```bash
 tumblr-posts publish \
   --blog myblog.tumblr.com \
   --file post.txt \
-  --client-id "$TUMBLR_CLIENT_ID" \
-  --client-secret "$TUMBLR_CLIENT_SECRET" \
-  --access-token "$TUMBLR_ACCESS_TOKEN" \
+  --consumer-key "$TUMBLR_CONSUMER_KEY" \
+  --consumer-secret "$TUMBLR_CONSUMER_SECRET" \
+  --oauth-token "$TUMBLR_OAUTH_TOKEN" \
+  --oauth-token-secret "$TUMBLR_OAUTH_TOKEN_SECRET" \
   --insert-links https://example.com https://status.example.com
 ```
 
-This inserts:
-
-- `Links:`
-- one link per line
-
-...after your file content, separated by a blank line.
-
-## 4) Add links at the top
+## 5) Add links at the top
 
 ```bash
 tumblr-posts publish \
   --blog myblog.tumblr.com \
   --file post.txt \
-  --client-id "$TUMBLR_CLIENT_ID" \
-  --client-secret "$TUMBLR_CLIENT_SECRET" \
-  --access-token "$TUMBLR_ACCESS_TOKEN" \
+  --consumer-key "$TUMBLR_CONSUMER_KEY" \
+  --consumer-secret "$TUMBLR_CONSUMER_SECRET" \
+  --oauth-token "$TUMBLR_OAUTH_TOKEN" \
+  --oauth-token-secret "$TUMBLR_OAUTH_TOKEN_SECRET" \
   --insert-links https://example.com https://docs.example.com \
   --links-position top \
   --links-header "References:"
 ```
 
-## 5) Add tags to API only
+## 6) Add tags to API only
 
 ```bash
 tumblr-posts publish \
   --blog myblog.tumblr.com \
   --file post.txt \
-  --client-id "$TUMBLR_CLIENT_ID" \
-  --client-secret "$TUMBLR_CLIENT_SECRET" \
-  --access-token "$TUMBLR_ACCESS_TOKEN" \
+  --consumer-key "$TUMBLR_CONSUMER_KEY" \
+  --consumer-secret "$TUMBLR_CONSUMER_SECRET" \
+  --oauth-token "$TUMBLR_OAUTH_TOKEN" \
+  --oauth-token-secret "$TUMBLR_OAUTH_TOKEN_SECRET" \
   --tags "#Python" " cli " devlog
 ```
 
-Tags are normalized before sending to Tumblr:
-
-- trimmed
-- leading `#` removed
-- empty values dropped
-
-## 6) Add tags to API and body
+## 7) Add tags to API and body
 
 ```bash
 tumblr-posts publish \
   --blog myblog.tumblr.com \
   --file post.txt \
-  --client-id "$TUMBLR_CLIENT_ID" \
-  --client-secret "$TUMBLR_CLIENT_SECRET" \
-  --access-token "$TUMBLR_ACCESS_TOKEN" \
+  --consumer-key "$TUMBLR_CONSUMER_KEY" \
+  --consumer-secret "$TUMBLR_CONSUMER_SECRET" \
+  --oauth-token "$TUMBLR_OAUTH_TOKEN" \
+  --oauth-token-secret "$TUMBLR_OAUTH_TOKEN_SECRET" \
   --tags Python CLI DevLog \
   --insert-tags \
   --tags-header "Topics:"
 ```
 
-When `--insert-tags` is present, a readable line is appended to body content, e.g.:
-
-`Topics: Python, CLI, DevLog`
-
-## 7) Publish state control: published vs draft vs queue
-
-Published:
+## 8) Publish state control: published vs draft vs queue
 
 ```bash
-tumblr-posts publish --blog myblog.tumblr.com --file post.txt --state published --client-id "$TUMBLR_CLIENT_ID" --client-secret "$TUMBLR_CLIENT_SECRET" --access-token "$TUMBLR_ACCESS_TOKEN"
+tumblr-posts publish --blog myblog.tumblr.com --file post.txt --state published --consumer-key "$TUMBLR_CONSUMER_KEY" --consumer-secret "$TUMBLR_CONSUMER_SECRET" --oauth-token "$TUMBLR_OAUTH_TOKEN" --oauth-token-secret "$TUMBLR_OAUTH_TOKEN_SECRET"
 ```
 
-Draft:
-
 ```bash
-tumblr-posts publish --blog myblog.tumblr.com --file post.txt --state draft --client-id "$TUMBLR_CLIENT_ID" --client-secret "$TUMBLR_CLIENT_SECRET" --access-token "$TUMBLR_ACCESS_TOKEN"
+tumblr-posts publish --blog myblog.tumblr.com --file post.txt --state draft --consumer-key "$TUMBLR_CONSUMER_KEY" --consumer-secret "$TUMBLR_CONSUMER_SECRET" --oauth-token "$TUMBLR_OAUTH_TOKEN" --oauth-token-secret "$TUMBLR_OAUTH_TOKEN_SECRET"
 ```
 
-Queue:
-
 ```bash
-tumblr-posts publish --blog myblog.tumblr.com --file post.txt --state queue --client-id "$TUMBLR_CLIENT_ID" --client-secret "$TUMBLR_CLIENT_SECRET" --access-token "$TUMBLR_ACCESS_TOKEN"
+tumblr-posts publish --blog myblog.tumblr.com --file post.txt --state queue --consumer-key "$TUMBLR_CONSUMER_KEY" --consumer-secret "$TUMBLR_CONSUMER_SECRET" --oauth-token "$TUMBLR_OAUTH_TOKEN" --oauth-token-secret "$TUMBLR_OAUTH_TOKEN_SECRET"
 ```
 
 (You can also use `--state private`.)
-
-## Common errors and fixes
-
-### 401 Unauthorized
-- Cause: invalid or expired `--access-token`.
-- Fix: regenerate token and retry.
-
-### 403 Forbidden
-- Cause: token lacks permission for the target blog.
-- Fix: verify app authorization and blog ownership/permissions.
-
-### 429 Too Many Requests
-- Cause: rate limit reached.
-- Fix: retry later. The CLI automatically retries transient failures and respects `Retry-After` for HTTP 429.
