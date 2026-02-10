@@ -1,29 +1,42 @@
-"""Authentication helpers for Tumblr API calls."""
+"""Authentication helpers for Tumblr OAuth 1.0a API calls."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 
+from .errors import ValidationError
 from .utils import ensure_nonempty
+
+OAUTH1_REQUIRED_MESSAGE = (
+    "Tumblr posting requires OAuth 1.0a: consumer_key, consumer_secret, "
+    "oauth_token, oauth_token_secret (from the Tumblr API Console)."
+)
 
 
 @dataclass(slots=True)
 class Credentials:
-    """CLI-provided Tumblr credentials for this non-interactive v1 client."""
+    """CLI-provided Tumblr OAuth 1.0a credentials."""
 
-    client_id: str
-    client_secret: str
-    access_token: str
+    consumer_key: str
+    consumer_secret: str
+    oauth_token: str
+    oauth_token_secret: str
 
     @classmethod
-    def from_cli(cls, client_id: str, client_secret: str, access_token: str) -> "Credentials":
+    def from_cli(
+        cls,
+        consumer_key: str | None,
+        consumer_secret: str | None,
+        oauth_token: str | None,
+        oauth_token_secret: str | None,
+    ) -> "Credentials":
         """Validate and construct credentials from CLI flags."""
-        return cls(
-            client_id=ensure_nonempty(client_id, "client-id"),
-            client_secret=ensure_nonempty(client_secret, "client-secret"),
-            access_token=ensure_nonempty(access_token, "access-token"),
-        )
-
-    def auth_header(self) -> dict[str, str]:
-        """Build Authorization header from access token."""
-        return {"Authorization": f"Bearer {self.access_token}"}
+        try:
+            return cls(
+                consumer_key=ensure_nonempty(consumer_key, "consumer-key"),
+                consumer_secret=ensure_nonempty(consumer_secret, "consumer-secret"),
+                oauth_token=ensure_nonempty(oauth_token, "oauth-token"),
+                oauth_token_secret=ensure_nonempty(oauth_token_secret, "oauth-token-secret"),
+            )
+        except ValidationError as exc:
+            raise ValidationError(OAUTH1_REQUIRED_MESSAGE) from exc

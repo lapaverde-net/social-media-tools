@@ -13,9 +13,10 @@ Required options:
 
 - `--blog TEXT`
 - `--file PATH`
-- `--client-id TEXT`
-- `--client-secret TEXT`
-- `--access-token TEXT`
+- `--consumer-key TEXT`
+- `--consumer-secret TEXT`
+- `--oauth-token TEXT`
+- `--oauth-token-secret TEXT`
 
 Optional options:
 
@@ -27,9 +28,32 @@ Optional options:
 - `--insert-links TEXT...`
 - `--links-header TEXT` (default: `Links:`)
 - `--links-position [top|bottom]` (default: `bottom`)
-- `--api-base-url TEXT`
+- `--api-base-url TEXT` (default: `https://api.tumblr.com`)
 - `--timeout INTEGER` (default: `30`)
 - `--verbose`
+
+Environment variable fallback:
+
+- `TUMBLR_CONSUMER_KEY`
+- `TUMBLR_CONSUMER_SECRET`
+- `TUMBLR_OAUTH_TOKEN`
+- `TUMBLR_OAUTH_TOKEN_SECRET`
+
+Deprecated compatibility flags:
+
+- `--client-id` → `--consumer-key`
+- `--client-secret` → `--consumer-secret`
+- `--access-token` (deprecated; do not use)
+
+Validation behavior:
+
+Missing OAuth values return exit code `2` with:
+
+`Tumblr posting requires OAuth 1.0a: consumer_key, consumer_secret, oauth_token, oauth_token_secret (from the Tumblr API Console).`
+
+### Deprecated auth command
+
+If older automation calls `tumblr-posts auth-login`, the command exits with a message explaining no callback/request-token authorize flow is needed.
 
 ## Rendering behavior
 
